@@ -1,0 +1,34 @@
+name: PR Sentinel self review
+
+# Runs PR Sentinel on its own pull requests, using the in-progress source
+# code rather than the published PyPI package. This both dogfoods the tool
+# and catches regressions before a release goes out.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  self-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PR Sentinel from source
+        run: pip install .
+
+      - name: Review this pull request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: prsentinel review --post-to-github --provider groq --fail-on critical
+        continue-on-error: true

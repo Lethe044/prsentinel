@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prsentinel"
+version = "1.0.0"
+description = "Free, self-hosted AI code review for pull requests. Bring your own free or paid model."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Kivanc", email = "noreply@example.com" }]
+keywords = [
+    "code-review",
+    "pull-request",
+    "github-actions",
+    "ai",
+    "static-analysis",
+    "devtools",
+    "llm",
+    "ci-cd"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing"
+]
+dependencies = [
+    "click>=8.1",
+    "rich>=13.7",
+    "requests>=2.31",
+    "PyYAML>=6.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "responses>=0.24"
+]
+
+[project.urls]
+Homepage = "https://github.com/Lethe044/prsentinel"
+Repository = "https://github.com/Lethe044/prsentinel"
+Issues = "https://github.com/Lethe044/prsentinel/issues"
+Changelog = "https://github.com/Lethe044/prsentinel/blob/main/CHANGELOG.md"
+
+[project.scripts]
+prsentinel = "prsentinel.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+prsentinel = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

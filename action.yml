@@ -1,0 +1,61 @@
+name: "PR Sentinel"
+description: "Free, self-hosted AI code review for pull requests. No paid subscription required."
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  provider:
+    description: "Which model provider to use: groq, gemini, ollama, openai, or anthropic."
+    required: false
+    default: "groq"
+  model:
+    description: "Model name. Leave blank to use the provider default."
+    required: false
+    default: ""
+  config-path:
+    description: "Path to a .prsentinel.yml file."
+    required: false
+    default: ".prsentinel.yml"
+  api-key:
+    description: "API key for the chosen provider. Not needed for ollama."
+    required: false
+    default: ""
+  github-token:
+    description: "Token used to post the review. Usually secrets.GITHUB_TOKEN."
+    required: true
+    default: ${{ github.token }}
+  fail-on:
+    description: "Minimum severity that should fail the check: suggestion, warning, or critical."
+    required: false
+    default: "critical"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install PR Sentinel
+      shell: bash
+      run: pip install prsentinel
+
+    - name: Run review
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GROQ_API_KEY: ${{ inputs.provider == 'groq' && inputs.api-key || env.GROQ_API_KEY }}
+        GEMINI_API_KEY: ${{ inputs.provider == 'gemini' && inputs.api-key || env.GEMINI_API_KEY }}
+        OPENAI_API_KEY: ${{ inputs.provider == 'openai' && inputs.api-key || env.OPENAI_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ inputs.provider == 'anthropic' && inputs.api-key || env.ANTHROPIC_API_KEY }}
+      run: |
+        ARGS=(--post-to-github --provider "${{ inputs.provider }}" --fail-on "${{ inputs.fail-on }}")
+        if [ -n "${{ inputs.model }}" ]; then
+          ARGS+=(--model "${{ inputs.model }}")
+        fi
+        if [ -f "${{ inputs.config-path }}" ]; then
+          ARGS+=(--config "${{ inputs.config-path }}")
+        fi
+        prsentinel review "${ARGS[@]}"

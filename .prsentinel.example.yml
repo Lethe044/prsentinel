@@ -1,0 +1,36 @@
+# PR Sentinel configuration
+# Full reference: https://github.com/Lethe044/prsentinel#configuration
+
+# Which provider to use: groq, gemini, ollama, openai, or anthropic
+provider: groq
+
+# Leave blank to use the provider's recommended default model
+model:
+
+# Minimum severity to report: suggestion, warning, or critical
+severity_threshold: suggestion
+
+# Minimum severity that should make the CI check fail
+fail_on: critical
+
+# Safety limits so a huge PR does not burn through your API quota
+max_files: 60
+max_diff_lines_per_chunk: 350
+
+# Glob patterns for files that should never be reviewed
+ignore:
+  - "*.lock"
+  - "dist/**"
+  - "node_modules/**"
+  - "vendor/**"
+
+# Extra instructions specific to your project or team, in plain English
+custom_rules: []
+
+# Behaviour when running inside a GitHub Action
+post_summary_comment: true
+inline_comments: true
+request_changes_on_critical: true
+
+# Cache results per commit so re-running a workflow does not re-spend quota
+cache_enabled: true
