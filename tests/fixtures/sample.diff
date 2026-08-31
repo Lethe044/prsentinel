@@ -1,0 +1,24 @@
+diff --git a/app/utils.py b/app/utils.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/app/utils.py
++++ b/app/utils.py
+@@ -10,7 +10,9 @@ def divide(a, b):
+     return a / b
+
+
+-def get_user(user_id):
+-    return database.query(f"SELECT * FROM users WHERE id = {user_id}")
++def get_user(user_id):
++    query = "SELECT * FROM users WHERE id = %s"
++    return database.query(query, (user_id,))
++
+
+ def is_admin(user):
+     return user.role == "admin"
+diff --git a/app/config.lock b/app/config.lock
+index aaaaaaa..bbbbbbb 100644
+--- a/app/config.lock
++++ b/app/config.lock
+@@ -1,2 +1,2 @@
+-version=1
++version=2
