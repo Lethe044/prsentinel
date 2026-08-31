@@ -24,6 +24,17 @@ def test_summary_comment_contains_marker_and_findings():
     assert "b.py" in body
 
 
+def test_summary_comment_includes_footer_by_default():
+    body = format_summary_comment(sample_result())
+    assert "PR Sentinel" in body
+    assert "github.com/Lethe044/prsentinel" in body
+
+
+def test_summary_comment_footer_can_be_disabled():
+    body = format_summary_comment(sample_result(), show_footer=False)
+    assert "github.com/Lethe044/prsentinel" not in body
+
+
 def test_summary_comment_clean_result():
     body = format_summary_comment(ReviewResult(files_reviewed=3, provider="groq", model="x"))
     assert "No issues found" in body

@@ -11,10 +11,11 @@ SEVERITY_LABEL = {
 MARKER = "<!-- prsentinel-summary -->"
 
 
-def format_summary_comment(result: ReviewResult) -> str:
+def format_summary_comment(result: ReviewResult, show_footer: bool = True) -> str:
     """Builds the single summary comment posted (and later updated) on a
-    pull request. The MARKER lets PR Sentinel find and edit its own
-    previous comment instead of piling up duplicates on every push.
+    pull request or merge request. The MARKER lets PR Sentinel find and
+    edit its own previous comment instead of piling up duplicates on every
+    push.
     """
 
     lines = [MARKER, "## PR Sentinel review", ""]
@@ -33,6 +34,8 @@ def format_summary_comment(result: ReviewResult) -> str:
 
     if not result.findings:
         lines.append("No issues found in the changed lines. Nice work.")
+        if show_footer:
+            lines.append(_footer())
         return "\n".join(lines)
 
     by_file: dict[str, list[Finding]] = {}
@@ -55,7 +58,20 @@ def format_summary_comment(result: ReviewResult) -> str:
             "were skipped, likely due to a provider error or rate limit._"
         )
 
+    if show_footer:
+        lines.append(_footer())
+
     return "\n".join(lines)
+
+
+def _footer() -> str:
+    return (
+        "\n---\n"
+        "*Reviewed by [PR Sentinel](https://github.com/Lethe044/prsentinel), "
+        "a free, self-hosted AI code reviewer. "
+        "[Report an issue](https://github.com/Lethe044/prsentinel/issues) "
+        "if a finding looks wrong.*"
+    )
 
 
 def format_inline_comments(result: ReviewResult) -> list[dict]:

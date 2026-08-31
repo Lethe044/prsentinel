@@ -39,6 +39,31 @@ to the whole file>,
 """
 
 
+SUMMARIZE_SYSTEM_PROMPT = """You are an experienced software engineer writing a pull \
+request title and description from a diff. Read the changes and infer the \
+intent behind them.
+
+Respond with a single JSON object and nothing else, no markdown code \
+fences. The JSON shape is exactly:
+
+{
+  "title": "<a concise, conventional-commit style title, under 72 characters>",
+  "summary": "<one paragraph explaining what changed and why, in plain \
+language>",
+  "highlights": ["<short bullet point of a notable change>", "..."]
+}
+
+Keep the title specific to what actually changed, not generic phrases like \
+"various fixes". If the diff clearly maps to a conventional commit type \
+(feat, fix, refactor, docs, test, chore, perf), prefix the title with it \
+followed by a colon.
+"""
+
+
+def build_summarize_prompt(diff_text: str) -> str:
+    return f"Diff:\n```diff\n{diff_text}\n```"
+
+
 def build_user_prompt(
     file_path: str,
     diff_chunk_text: str,

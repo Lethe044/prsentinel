@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.0]
+
+### Added
+
+- GitLab CI support: `prsentinel review --post-to-gitlab` posts a summary
+  note and inline discussions on a GitLab merge request, using the same
+  review pipeline as GitHub.
+- `prsentinel summarize`: suggests a pull request title, a short summary,
+  and a few highlights from a diff.
+- `--staged` flag and a `.pre-commit-hooks.yaml` definition, so PR Sentinel
+  can run as a [pre-commit](https://pre-commit.com) hook against staged
+  changes before a commit is even made.
+- `prsentinel validate-config`: checks a `.prsentinel.yml` file for
+  invalid values without running a full review.
+- `--dry-run` flag on `review`: computes the review and prints what would
+  be posted, without actually posting to GitHub or GitLab.
+- Diff chunks are now reviewed concurrently (`max_workers` in config),
+  which noticeably speeds up review of larger pull requests.
+- Optional branding footer on the summary comment, linking back to the
+  project. Controlled by `show_footer` in config.
+
+### Changed
+
+- `format_summary_comment` now accepts a `show_footer` argument.
+
 ## [1.0.0] - Initial release
 
 ### Added

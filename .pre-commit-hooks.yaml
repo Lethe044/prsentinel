@@ -1,0 +1,7 @@
+- id: prsentinel
+  name: PR Sentinel
+  description: Reviews your staged changes with an AI model before you commit.
+  entry: prsentinel review --staged
+  language: python
+  pass_filenames: false
+  stages: [pre-commit]

@@ -18,6 +18,9 @@ from prsentinel.ignore import DEFAULT_IGNORE_PATTERNS
 
 DEFAULT_CONFIG_FILENAMES = (".prsentinel.yml", ".prsentinel.yaml")
 
+VALID_PROVIDERS = ("groq", "gemini", "ollama", "openai", "anthropic")
+VALID_SEVERITIES = ("suggestion", "warning", "critical")
+
 
 @dataclass
 class Config:
@@ -35,6 +38,8 @@ class Config:
     request_changes_on_critical: bool = True
     cache_enabled: bool = True
     api_base: Optional[str] = None
+    max_workers: int = 4
+    show_footer: bool = True
 
     @staticmethod
     def load(path: Optional[str] = None) -> "Config":
@@ -118,6 +123,14 @@ request_changes_on_critical: true
 
 # Cache results per commit so re-running a workflow does not re-spend quota
 cache_enabled: true
+
+# How many diff chunks to review at the same time. Higher is faster but
+# spends a free tier rate limit faster too.
+max_workers: 4
+
+# Adds a small "powered by PR Sentinel" line at the bottom of the summary
+# comment. Turn off if you would rather keep comments unbranded.
+show_footer: true
 """
 
 
@@ -125,3 +138,49 @@ def write_default_config(path: str = ".prsentinel.yml") -> Path:
     target = Path(path)
     target.write_text(DEFAULT_CONFIG_TEMPLATE, encoding="utf-8")
     return target
+
+
+def validate_config(config: Config) -> list[str]:
+    """Checks a loaded Config for values that would cause a confusing
+    failure later, and returns a list of human readable problems. An empty
+    list means the config is valid.
+    """
+
+    errors = []
+
+    if config.provider not in VALID_PROVIDERS:
+        errors.append(
+            f"provider '{config.provider}' is not one of: "
+            f"{', '.join(VALID_PROVIDERS)}"
+        )
+
+    if config.severity_threshold not in VALID_SEVERITIES:
+        errors.append(
+            f"severity_threshold '{config.severity_threshold}' is not one "
+            f"of: {', '.join(VALID_SEVERITIES)}"
+        )
+
+    if config.fail_on not in VALID_SEVERITIES:
+        errors.append(
+            f"fail_on '{config.fail_on}' is not one of: "
+            f"{', '.join(VALID_SEVERITIES)}"
+        )
+
+    if not isinstance(config.max_files, int) or config.max_files <= 0:
+        errors.append("max_files must be a positive integer")
+
+    if not isinstance(config.max_diff_lines_per_chunk, int) or config.max_diff_lines_per_chunk <= 0:
+        errors.append("max_diff_lines_per_chunk must be a positive integer")
+
+    if not isinstance(config.max_workers, int) or config.max_workers <= 0:
+        errors.append("max_workers must be a positive integer")
+
+    if not isinstance(config.ignore, list) or not all(isinstance(p, str) for p in config.ignore):
+        errors.append("ignore must be a list of strings")
+
+    if not isinstance(config.custom_rules, list) or not all(
+        isinstance(r, str) for r in config.custom_rules
+    ):
+        errors.append("custom_rules must be a list of strings")
+
+    return errors

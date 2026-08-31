@@ -5,10 +5,11 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/prsentinel-cli.svg)](https://pypi.org/project/prsentinel-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Free, self-hosted AI code review for pull requests. Point it at a free
-provider like Groq, Gemini, or a local Ollama model and it reads your diff,
-flags real problems, and leaves comments directly on the pull request. No
-subscription, no seat-based pricing, no vendor lock-in.
+Free, self-hosted AI code review for pull requests and merge requests.
+Point it at a free provider like Groq, Gemini, or a local Ollama model and
+it reads your diff, flags real problems, and leaves comments directly on
+GitHub or GitLab. No subscription, no seat-based pricing, no vendor
+lock-in.
 
 If your team has a budget for a paid model, PR Sentinel works with your own
 OpenAI or Anthropic key too. Nothing here requires it.
@@ -27,6 +28,7 @@ the entire pipeline runs inside your own GitHub Actions job.
 
 - Reads the diff for a pull request (or a local `git diff`) and reviews
   only the changed lines, using surrounding context to understand intent.
+- Works on both GitHub pull requests and GitLab merge requests.
 - Flags bugs, security issues, performance problems, missing error
   handling, and missing tests, not personal style nitpicks.
 - Posts a single summary comment on the pull request, plus inline comments
@@ -34,6 +36,11 @@ the entire pipeline runs inside your own GitHub Actions job.
   every push instead of piling up duplicates.
 - Requests changes automatically when a critical issue is found, so it can
   act as a real merge gate if you want one.
+- Also works as a [pre-commit](https://pre-commit.com) hook, reviewing
+  staged changes before they are even pushed.
+- Suggests a pull request title and description from a diff with
+  `prsentinel summarize`, if you would rather not write one by hand.
+- Reviews diff chunks concurrently, so larger pull requests finish faster.
 - Works from the command line too, so you can review a diff before you even
   open the pull request.
 - Exports findings as SARIF for the GitHub Security tab, or as plain JSON
@@ -69,6 +76,45 @@ jobs:
 Get a free Groq API key at [console.groq.com/keys](https://console.groq.com/keys),
 add it as a repository secret named `GROQ_API_KEY`, and every new pull
 request gets reviewed automatically.
+
+## Quickstart: GitLab CI
+
+Add this to `.gitlab-ci.yml`:
+
+```yaml
+prsentinel:
+  image: python:3.12
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - pip install prsentinel-cli
+    - prsentinel review --post-to-gitlab --provider groq
+  variables:
+    GROQ_API_KEY: $GROQ_API_KEY
+```
+
+Add `GROQ_API_KEY` and a `GITLAB_TOKEN` (a project access token with the
+`api` scope) as masked CI/CD variables in your project settings, and every
+merge request gets a summary note plus inline comments on the changed
+lines.
+
+## Quickstart: pre-commit hook
+
+PR Sentinel also works as a [pre-commit](https://pre-commit.com) hook, so
+you catch problems before they are even pushed. Add this to your
+`.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/Lethe044/prsentinel
+    rev: v1.1.0
+    hooks:
+      - id: prsentinel
+```
+
+This reviews your staged changes every time you run `git commit`, using
+whichever provider and API key you have configured locally.
 
 ## Quickstart: command line
 
@@ -121,6 +167,8 @@ post_summary_comment: true
 inline_comments: true
 request_changes_on_critical: true
 cache_enabled: true
+max_workers: 4
+show_footer: true
 ```
 
 `custom_rules` is where PR Sentinel becomes specific to your project. Add
@@ -131,27 +179,51 @@ alongside the general review.
 red). Set it to `warning` for a stricter gate, or `suggestion` for the
 strictest possible one.
 
+`max_workers` controls how many diff chunks are reviewed at the same time.
+Raising it speeds up large pull requests, at the cost of hitting a free
+tier rate limit sooner.
+
+Run `prsentinel validate-config` at any time to check a `.prsentinel.yml`
+file for typos or invalid values without running a full review, useful as
+a quick sanity check in CI before the real review step runs.
+
 ## Command line reference
 
 ```
-prsentinel review          Review a diff and report findings
-prsentinel init            Write a starter .prsentinel.yml
-prsentinel providers       List providers and setup instructions
-prsentinel clear-cache     Delete the local review cache
+prsentinel review           Review a diff and report findings
+prsentinel summarize        Suggest a PR title and description from a diff
+prsentinel init              Write a starter .prsentinel.yml
+prsentinel validate-config   Check a .prsentinel.yml file for problems
+prsentinel providers         List providers and setup instructions
+prsentinel clear-cache       Delete the local review cache
 ```
 
 Useful flags on `review`:
 
 ```
 --base, --head        Git refs to diff (defaults to origin/main...HEAD)
+--staged              Review staged changes instead of a branch diff
 --diff-file           Review a saved unified diff file instead of running git
 --provider, --model   Override the provider or model from config
 --output              terminal (default), json, or sarif
 --output-file         Write json/sarif output to a file
 --post-to-github      Post results as a review on the current GitHub Actions PR
+--post-to-gitlab      Post results as notes on the current GitLab CI merge request
+--dry-run             Compute the review but do not post anything, just print it
 --fail-on             Override the fail_on threshold for this run
 --no-cache            Skip the local response cache for this run
 ```
+
+## Suggesting a PR title and description
+
+```bash
+prsentinel summarize --base origin/main --head HEAD
+```
+
+Reads the same kind of diff as `review`, but instead of finding problems it
+proposes a conventional-commit style title, a short summary, and a few
+highlights. Handy when you are about to open a pull request and would
+rather not write the description from scratch.
 
 ## How review comments look
 

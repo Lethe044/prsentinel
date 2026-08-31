@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Optional
 
 from prsentinel import cache
@@ -133,7 +134,9 @@ def run_review(
     """Reviews an entire diff and returns the aggregated result.
 
     `on_progress` is called with a short human readable string before each
-    file is reviewed, so the CLI can show live feedback on larger PRs.
+    chunk is submitted for review, so the CLI can show live feedback on
+    larger PRs. Chunks are reviewed concurrently (bounded by
+    `config.max_workers`) since each one is an independent API call.
     """
 
     files = parse_unified_diff(diff_text)
@@ -156,26 +159,37 @@ def run_review(
         result.files_skipped += len(reviewable) - config.max_files
         reviewable = reviewable[: config.max_files]
 
+    tasks: list[tuple[str, str]] = []
     for diff_file in reviewable:
-        if on_progress:
-            on_progress(diff_file.path)
-
         chunks = _chunk_hunks(diff_file.hunks, config.max_diff_lines_per_chunk)
         for hunk_group in chunks:
             chunk_text = "\n".join(hunk.to_text() for hunk in hunk_group)
-            chunk_result = review_chunk(
-                provider=provider,
-                file_path=diff_file.path,
-                chunk_text=chunk_text,
-                custom_rules=config.custom_rules,
-                language_hints=config.language_hints,
-                use_cache=config.cache_enabled,
+            tasks.append((diff_file.path, chunk_text))
+
+    max_workers = max(1, config.max_workers)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_task = {}
+        for file_path, chunk_text in tasks:
+            if on_progress:
+                on_progress(file_path)
+            future = executor.submit(
+                review_chunk,
+                provider,
+                file_path,
+                chunk_text,
+                config.custom_rules,
+                config.language_hints,
+                config.cache_enabled,
             )
+            future_to_task[future] = file_path
+
+        for future in as_completed(future_to_task):
+            chunk_result = future.result()
             if chunk_result.error:
                 result.chunks_failed += 1
             result.findings.extend(chunk_result.findings)
 
-        result.files_reviewed += 1
+    result.files_reviewed = len(reviewable)
 
     threshold = Severity.from_str(config.severity_threshold)
     result.findings = [f for f in result.findings if f.severity.rank >= threshold.rank]

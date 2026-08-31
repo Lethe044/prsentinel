@@ -1,4 +1,5 @@
 import json
+import threading
 
 from prsentinel.config import Config
 from prsentinel.models import Severity
@@ -25,9 +26,11 @@ class FakeProvider(BaseProvider):
         super().__init__(**kwargs)
         self.response_text = response_text
         self.calls = 0
+        self._lock = threading.Lock()
 
     def complete(self, system_prompt: str, user_prompt: str) -> str:
-        self.calls += 1
+        with self._lock:
+            self.calls += 1
         return self.response_text
 
 
@@ -134,3 +137,36 @@ def test_run_review_handles_provider_error_gracefully(tmp_path, monkeypatch):
 
     assert result.chunks_failed == 1
     assert result.findings == []
+
+
+def test_run_review_handles_multiple_files_concurrently(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    two_file_diff = SAMPLE_DIFF + (
+        "\ndiff --git a/app/other.py b/app/other.py\n"
+        "index 111..222 100644\n"
+        "--- a/app/other.py\n"
+        "+++ b/app/other.py\n"
+        "@@ -1,1 +1,2 @@\n"
+        " def existing():\n"
+        "+    pass\n"
+    )
+    response = json.dumps({"findings": []})
+    provider = FakeProvider(response)
+    config = Config(cache_enabled=False, max_workers=4)
+
+    result = run_review(two_file_diff, config, provider)
+
+    assert result.files_reviewed == 2
+    assert provider.calls == 2
+
+
+def test_run_review_respects_max_workers_of_one(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    response = json.dumps({"findings": []})
+    provider = FakeProvider(response)
+    config = Config(cache_enabled=False, max_workers=1)
+
+    result = run_review(SAMPLE_DIFF, config, provider)
+
+    assert result.files_reviewed == 1
