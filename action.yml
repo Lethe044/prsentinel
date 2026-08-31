@@ -40,7 +40,7 @@ runs:
 
     - name: Install PR Sentinel
       shell: bash
-      run: pip install prsentinel
+      run: pip install prsentinel-cli
 
     - name: Run review
       shell: bash

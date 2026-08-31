@@ -1,8 +1,8 @@
 # PR Sentinel
 
 [![CI](https://github.com/Lethe044/prsentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Lethe044/prsentinel/actions/workflows/ci.yml)
-[![PyPI version](https://img.shields.io/pypi/v/prsentinel.svg)](https://pypi.org/project/prsentinel/)
-[![Python versions](https://img.shields.io/pypi/pyversions/prsentinel.svg)](https://pypi.org/project/prsentinel/)
+[![PyPI version](https://img.shields.io/pypi/v/prsentinel-cli.svg)](https://pypi.org/project/prsentinel-cli/)
+[![Python versions](https://img.shields.io/pypi/pyversions/prsentinel-cli.svg)](https://pypi.org/project/prsentinel-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Free, self-hosted AI code review for pull requests. Point it at a free
@@ -73,7 +73,7 @@ request gets reviewed automatically.
 ## Quickstart: command line
 
 ```bash
-pip install prsentinel
+pip install prsentinel-cli
 
 export GROQ_API_KEY=your-key-here
 prsentinel review --base origin/main --head HEAD
