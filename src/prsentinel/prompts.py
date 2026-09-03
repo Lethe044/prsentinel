@@ -31,11 +31,16 @@ to the whole file>,
       "severity": "suggestion" | "warning" | "critical",
       "category": "bug" | "security" | "performance" | "style" | "test" | \
 "maintainability" | "other",
+      "confidence": "low" | "medium" | "high",
       "message": "<one or two sentence explanation>",
       "suggestion": "<short concrete fix, or null if not applicable>"
     }
   ]
 }
+
+Set "confidence" honestly. Use "high" only when you are quite sure this is \
+a real problem. Use "low" for something worth a human glance but that you \
+are not fully sure about, rather than omitting it entirely.
 """
 
 

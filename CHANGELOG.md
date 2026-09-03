@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.0]
+
+### Added
+
+- Inline suppression comments: `prsentinel-ignore-line`,
+  `prsentinel-ignore-next-line`, and `prsentinel-ignore-file` silence
+  findings the same way a linter comment would. Works with any comment
+  syntax, and can be turned off with `enable_suppression_comments: false`.
+- Findings now carry a confidence level (low, medium, high). Filter noise
+  out with `min_confidence` in `.prsentinel.yml`.
+- `category_severity_floor` config: forces a minimum severity for a
+  category regardless of what the model assigned. Defaults to
+  `security: warning`, so a security finding is never silently downgraded
+  to a mere suggestion.
+- Docker image published to `ghcr.io/lethe044/prsentinel` on every
+  release, for running PR Sentinel without installing Python.
+- `--output html`: renders a single, dependency-free HTML report, useful
+  as a CI artifact.
+- `prsentinel stats`: shows how many responses are stored in the local
+  cache and how much disk space they use.
+
+### Changed
+
+- `Finding` objects now include a `confidence` field in JSON and SARIF
+  output.
+
 ## [1.1.0]
 
 ### Added

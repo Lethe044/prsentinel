@@ -170,3 +170,120 @@ def test_run_review_respects_max_workers_of_one(tmp_path, monkeypatch):
     result = run_review(SAMPLE_DIFF, config, provider)
 
     assert result.files_reviewed == 1
+
+
+def test_run_review_parses_confidence(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    response = json.dumps(
+        {
+            "findings": [
+                {
+                    "line": 12,
+                    "severity": "warning",
+                    "category": "bug",
+                    "confidence": "high",
+                    "message": "Something is off.",
+                }
+            ]
+        }
+    )
+    provider = FakeProvider(response)
+    config = Config(cache_enabled=False)
+
+    result = run_review(SAMPLE_DIFF, config, provider)
+
+    assert result.findings[0].confidence.value == "high"
+
+
+def test_run_review_min_confidence_filters_low_confidence_findings(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    response = json.dumps(
+        {
+            "findings": [
+                {"line": 12, "severity": "warning", "category": "bug", "confidence": "low", "message": "maybe"},
+                {"line": 13, "severity": "warning", "category": "bug", "confidence": "high", "message": "sure thing"},
+            ]
+        }
+    )
+    provider = FakeProvider(response)
+    config = Config(cache_enabled=False, min_confidence="high")
+
+    result = run_review(SAMPLE_DIFF, config, provider)
+
+    assert len(result.findings) == 1
+    assert result.findings[0].message == "sure thing"
+
+
+def test_run_review_applies_category_severity_floor(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    response = json.dumps(
+        {
+            "findings": [
+                {"line": 12, "severity": "suggestion", "category": "security", "message": "weak crypto"},
+            ]
+        }
+    )
+    provider = FakeProvider(response)
+    config = Config(
+        cache_enabled=False,
+        severity_threshold="suggestion",
+        category_severity_floor={"security": "critical"},
+    )
+
+    result = run_review(SAMPLE_DIFF, config, provider)
+
+    assert result.findings[0].severity == Severity.CRITICAL
+
+
+def test_run_review_suppresses_marked_lines(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    diff_with_marker = """\
+diff --git a/app/utils.py b/app/utils.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/app/utils.py
++++ b/app/utils.py
+@@ -10,3 +10,4 @@ def divide(a, b):
+     return a / b
++def get_user(user_id):
++    return db.query(f"SELECT * FROM users WHERE id = {user_id}")  # prsentinel-ignore-line
+"""
+    response = json.dumps(
+        {
+            "findings": [
+                {"line": 12, "severity": "critical", "category": "security", "message": "sql injection"},
+            ]
+        }
+    )
+    provider = FakeProvider(response)
+    config = Config(cache_enabled=False)
+
+    result = run_review(diff_with_marker, config, provider)
+
+    assert result.findings == []
+
+
+def test_run_review_suppression_can_be_disabled(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    diff_with_marker = """\
+diff --git a/app/utils.py b/app/utils.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/app/utils.py
++++ b/app/utils.py
+@@ -10,3 +10,4 @@ def divide(a, b):
+     return a / b
++def get_user(user_id):
++    return db.query(f"SELECT * FROM users WHERE id = {user_id}")  # prsentinel-ignore-line
+"""
+    response = json.dumps(
+        {
+            "findings": [
+                {"line": 12, "severity": "critical", "category": "security", "message": "sql injection"},
+            ]
+        }
+    )
+    provider = FakeProvider(response)
+    config = Config(cache_enabled=False, enable_suppression_comments=False)
+
+    result = run_review(diff_with_marker, config, provider)
+
+    assert len(result.findings) == 1

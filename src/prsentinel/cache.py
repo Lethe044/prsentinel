@@ -56,3 +56,20 @@ def clear() -> int:
         item.unlink()
         removed += 1
     return removed
+
+
+def stats() -> dict:
+    """Returns a small, honest snapshot of the local cache: how many
+    responses are stored, how much disk space they use, and the directory
+    they live in. Nothing here is inferred or estimated.
+    """
+
+    directory = _cache_dir()
+    entries = list(directory.glob("*.json"))
+    total_bytes = sum(entry.stat().st_size for entry in entries)
+
+    return {
+        "directory": str(directory),
+        "entry_count": len(entries),
+        "total_bytes": total_bytes,
+    }

@@ -10,6 +10,7 @@ from rich.console import Console
 
 from prsentinel import __version__, cache
 from prsentinel.config import Config, validate_config, write_default_config
+from prsentinel.formatters.html import format_html
 from prsentinel.formatters.json_formatter import format_json
 from prsentinel.formatters.markdown import MARKER, format_inline_comments, format_summary_comment
 from prsentinel.formatters.sarif import format_sarif
@@ -127,6 +128,17 @@ def clear_cache() -> None:
 
 
 @main.command()
+def stats() -> None:
+    """Shows how much is currently stored in the local review cache."""
+
+    data = cache.stats()
+    size_kb = data["total_bytes"] / 1024
+    console.print(f"Cache directory: {data['directory']}")
+    console.print(f"Cached responses: {data['entry_count']}")
+    console.print(f"Disk usage: {size_kb:.1f} KB")
+
+
+@main.command()
 @click.option("--base", default="origin/main", show_default=True, help="Base ref to diff against.")
 @click.option("--head", default="HEAD", show_default=True, help="Head ref to diff.")
 @click.option("--staged", is_flag=True, help="Review staged changes (git diff --cached) instead of a branch diff. Used by the pre-commit hook.")
@@ -135,7 +147,7 @@ def clear_cache() -> None:
 @click.option("--provider", help="Override the provider from config (groq, gemini, ollama, openai, anthropic).")
 @click.option("--model", help="Override the model from config.")
 @click.option("--api-key", help="Override the API key from the environment.")
-@click.option("--output", type=click.Choice(["terminal", "json", "sarif"]), default="terminal", show_default=True)
+@click.option("--output", type=click.Choice(["terminal", "json", "sarif", "html"]), default="terminal", show_default=True)
 @click.option("--output-file", type=click.Path(), help="Write --output json/sarif to a file instead of stdout.")
 @click.option("--post-to-github", is_flag=True, help="Post results as a review on the current GitHub Actions pull request.")
 @click.option("--post-to-gitlab", is_flag=True, help="Post results as notes on the current GitLab CI merge request.")
@@ -220,6 +232,9 @@ def review(
         _write_output(rendered, output_file)
     elif output == "sarif":
         rendered = json.dumps(format_sarif(result), indent=2)
+        _write_output(rendered, output_file)
+    elif output == "html":
+        rendered = format_html(result)
         _write_output(rendered, output_file)
 
     if post_to_github and github_client and pr_context:

@@ -40,6 +40,9 @@ class Config:
     api_base: Optional[str] = None
     max_workers: int = 4
     show_footer: bool = True
+    min_confidence: str = "low"
+    category_severity_floor: dict = field(default_factory=lambda: {"security": "warning"})
+    enable_suppression_comments: bool = True
 
     @staticmethod
     def load(path: Optional[str] = None) -> "Config":
@@ -131,6 +134,21 @@ max_workers: 4
 # Adds a small "powered by PR Sentinel" line at the bottom of the summary
 # comment. Turn off if you would rather keep comments unbranded.
 show_footer: true
+
+# Drop findings below this confidence level: low, medium, or high.
+# "low" keeps everything the model reports.
+min_confidence: low
+
+# Force a minimum severity for specific categories, regardless of what the
+# model assigned. Useful to make sure security findings are never quietly
+# reported as a mere suggestion.
+category_severity_floor:
+  security: warning
+
+# Lets you silence a specific finding with a comment in your code, the
+# same way you would silence a linter: prsentinel-ignore-line,
+# prsentinel-ignore-next-line, or prsentinel-ignore-file.
+enable_suppression_comments: true
 """
 
 
@@ -182,5 +200,18 @@ def validate_config(config: Config) -> list[str]:
         isinstance(r, str) for r in config.custom_rules
     ):
         errors.append("custom_rules must be a list of strings")
+
+    if config.min_confidence not in ("low", "medium", "high"):
+        errors.append("min_confidence must be one of: low, medium, high")
+
+    if not isinstance(config.category_severity_floor, dict):
+        errors.append("category_severity_floor must be a mapping of category to severity")
+    else:
+        for category, severity in config.category_severity_floor.items():
+            if severity not in VALID_SEVERITIES:
+                errors.append(
+                    f"category_severity_floor['{category}'] = '{severity}' "
+                    f"is not one of: {', '.join(VALID_SEVERITIES)}"
+                )
 
     return errors

@@ -14,9 +14,10 @@ from prsentinel import cache
 from prsentinel.config import Config
 from prsentinel.diffparser import DiffFile, DiffHunk, parse_unified_diff
 from prsentinel.ignore import is_ignored
-from prsentinel.models import Category, ChunkResult, Finding, ReviewResult, Severity
+from prsentinel.models import Category, ChunkResult, Confidence, Finding, ReviewResult, Severity
 from prsentinel.prompts import SYSTEM_PROMPT, build_user_prompt
 from prsentinel.providers.base import BaseProvider, ProviderError
+from prsentinel.suppressions import FileSuppressions, build_suppressions_by_file
 
 JSON_BLOCK_RE = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -119,6 +120,7 @@ def _parse_response(file_path: str, raw_response: str) -> ChunkResult:
                 category=Category.from_str(item.get("category", "other")),
                 message=message,
                 suggestion=item.get("suggestion") or None,
+                confidence=Confidence.from_str(item.get("confidence", "medium")),
             )
         )
 
@@ -191,7 +193,41 @@ def run_review(
 
     result.files_reviewed = len(reviewable)
 
+    if config.category_severity_floor:
+        _apply_category_severity_floor(result.findings, config.category_severity_floor)
+
+    if config.enable_suppression_comments:
+        suppressions_by_file = build_suppressions_by_file(reviewable)
+        result.findings = [
+            f
+            for f in result.findings
+            if not suppressions_by_file.get(f.file, _NO_SUPPRESSIONS).covers(f.line)
+        ]
+
     threshold = Severity.from_str(config.severity_threshold)
     result.findings = [f for f in result.findings if f.severity.rank >= threshold.rank]
 
+    min_confidence = Confidence.from_str(config.min_confidence)
+    result.findings = [
+        f for f in result.findings if f.confidence.rank >= min_confidence.rank
+    ]
+
     return result
+
+
+_NO_SUPPRESSIONS = FileSuppressions()
+
+
+def _apply_category_severity_floor(findings: list[Finding], floor_map: dict) -> None:
+    """Raises a finding's severity up to the configured floor for its
+    category, in place. Never lowers a severity the model already rated
+    higher than the floor.
+    """
+
+    floors = {
+        category: Severity.from_str(severity) for category, severity in floor_map.items()
+    }
+    for finding in findings:
+        floor = floors.get(finding.category.value)
+        if floor is not None and finding.severity.rank < floor.rank:
+            finding.severity = floor

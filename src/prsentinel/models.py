@@ -7,6 +7,30 @@ from enum import Enum
 from typing import Optional
 
 
+class Confidence(str, Enum):
+    """How sure the model is about a finding. Used to filter out low
+    confidence noise without throwing away everything a model is unsure
+    about, since even a low confidence flag can be worth a human glance.
+    """
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+    @property
+    def rank(self) -> int:
+        order = {Confidence.LOW: 0, Confidence.MEDIUM: 1, Confidence.HIGH: 2}
+        return order[self]
+
+    @classmethod
+    def from_str(cls, value: str) -> "Confidence":
+        value = (value or "").strip().lower()
+        for member in cls:
+            if member.value == value:
+                return member
+        return cls.MEDIUM
+
+
 class Severity(str, Enum):
     """How serious a finding is, ordered from least to most severe."""
 
@@ -64,6 +88,7 @@ class Finding:
     category: Category
     message: str
     suggestion: Optional[str] = None
+    confidence: Confidence = Confidence.MEDIUM
 
     def to_dict(self) -> dict:
         return {
@@ -73,6 +98,7 @@ class Finding:
             "category": self.category.value,
             "message": self.message,
             "suggestion": self.suggestion,
+            "confidence": self.confidence.value,
         }
 
 

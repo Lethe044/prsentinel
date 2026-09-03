@@ -196,6 +196,7 @@ prsentinel init              Write a starter .prsentinel.yml
 prsentinel validate-config   Check a .prsentinel.yml file for problems
 prsentinel providers         List providers and setup instructions
 prsentinel clear-cache       Delete the local review cache
+prsentinel stats             Show how much is stored in the local cache
 ```
 
 Useful flags on `review`:
@@ -205,7 +206,7 @@ Useful flags on `review`:
 --staged              Review staged changes instead of a branch diff
 --diff-file           Review a saved unified diff file instead of running git
 --provider, --model   Override the provider or model from config
---output              terminal (default), json, or sarif
+--output              terminal (default), json, sarif, or html
 --output-file         Write json/sarif output to a file
 --post-to-github      Post results as a review on the current GitHub Actions PR
 --post-to-gitlab      Post results as notes on the current GitLab CI merge request
@@ -224,6 +225,52 @@ Reads the same kind of diff as `review`, but instead of finding problems it
 proposes a conventional-commit style title, a short summary, and a few
 highlights. Handy when you are about to open a pull request and would
 rather not write the description from scratch.
+
+## Quickstart: Docker
+
+If you would rather not install Python, a ready to use image is published
+on every release:
+
+```bash
+docker run --rm -v "$(pwd):/workspace" -e GROQ_API_KEY \
+  ghcr.io/lethe044/prsentinel:latest review --base origin/main --head HEAD
+```
+
+Mount your repository at `/workspace` and pass whichever provider key you
+are using as an environment variable. This works the same way in any CI
+system that can run a Docker image, not just GitHub Actions or GitLab CI.
+
+## Silencing a specific finding
+
+Sometimes a flagged line is genuinely fine for reasons the model cannot
+see. Silence it the same way you would silence a linter, with a comment
+near the line:
+
+```python
+eval(trusted_internal_config)  # prsentinel-ignore-line
+```
+
+```python
+# prsentinel-ignore-next-line
+eval(trusted_internal_config)
+```
+
+Add `# prsentinel-ignore-file` anywhere in a file to skip it entirely (for
+example, a generated file that should never be reviewed). This works with
+any comment syntax, since only the marker text itself is matched. Turn it
+off globally with `enable_suppression_comments: false` in
+`.prsentinel.yml` if you would rather not have this escape hatch at all.
+
+## Confidence and category severity floors
+
+Every finding also carries a confidence level (low, medium, or high),
+based on how sure the model is. Set `min_confidence: high` in
+`.prsentinel.yml` if you only want the findings it is fairly certain about.
+
+`category_severity_floor` forces a minimum severity for a category no
+matter what the model assigned, which is on by default for security
+findings (`security: warning`) so a model having an off day never quietly
+downgrades a real security issue to a suggestion.
 
 ## How review comments look
 
